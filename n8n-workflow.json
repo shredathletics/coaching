@@ -1,0 +1,54 @@
+{
+  "name": "Typeform Weekly Check-in → Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "typeform-checkin",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "webhook-node",
+      "name": "Typeform Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "typeform-checkin"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst answers = data.form_response?.answers || [];\nconst definition = data.form_response?.definition?.fields || [];\n\nfunction getAnswer(titleContains) {\n  const field = definition.find(f => f.title?.toLowerCase().includes(titleContains.toLowerCase()));\n  if (!field) return 'N/A';\n  const answer = answers.find(a => a.field?.id === field.id);\n  if (!answer) return 'N/A';\n  if (answer.type === 'text') return answer.text || 'N/A';\n  if (answer.type === 'number') return answer.number?.toString() || 'N/A';\n  if (answer.type === 'boolean') return answer.boolean ? 'Yes' : 'No';\n  if (answer.type === 'choice') return answer.choice?.label || 'N/A';\n  return 'N/A';\n}\n\nconst name = getAnswer('name');\nconst currentWeight = getAnswer('current weight');\nconst targetWeight = getAnswer('target weight');\nconst nutritionScore = getAnswer('nutrition adherence');\nconst nutritionThoughts = getAnswer('nutrition thoughts');\nconst runningVolume = getAnswer('running volume');\nconst completedRuns = getAnswer('complete all planned');\nconst missedReason = getAnswer('missing runs');\nconst strengthScore = getAnswer('strength training');\nconst fatigueLevel = getAnswer('fatigue');\nconst injuries = getAnswer('pain');\nconst fueling = getAnswer('fueling');\nconst bestSession = getAnswer('best session');\nconst focusAreas = getAnswer('focus areas');\nconst travel = getAnswer('travel');\nconst supportNeeded = getAnswer('support needed');\n\nconst message = `📋 *WEEKLY CHECK-IN*\n━━━━━━━━━━━━━━━━━━\n\n👤 *${name}*\n\n⚖️ *Weight*\nCurrent: ${currentWeight} | Target: ${targetWeight}\n\n🍎 *Nutrition*: ${nutritionScore}/10\n${nutritionThoughts !== 'N/A' ? `Notes: ${nutritionThoughts}\n` : ''}\n🏃 *Running*: ${runningVolume} km\nCompleted all runs: ${completedRuns}\n${missedReason !== 'N/A' ? `Missed: ${missedReason}\n` : ''}\n💪 *Strength*: ${strengthScore}/10\n\n😴 *Fatigue*: ${fatigueLevel}/10\n\n🩹 *Injuries*: ${injuries !== 'N/A' ? injuries : 'None'}\n\n⛽ *Fueling*: ${fueling}\n\n🌟 *Best Session*: ${bestSession !== 'N/A' ? bestSession : '-'}\n\n🎯 *Focus*: ${focusAreas !== 'N/A' ? focusAreas : '-'}\n\n✈️ *Travel*: ${travel !== 'N/A' ? travel : 'None'}\n\n🆘 *Support Needed*: ${supportNeeded !== 'N/A' ? supportNeeded : 'None'}\n\n━━━━━━━━━━━━━━━━━━`;\n\nreturn [{ json: { message, clientName: name } }];"
+      },
+      "id": "format-message",
+      "name": "Format Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "-5162226802",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "telegram-send",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [710, 300]
+    }
+  ],
+  "connections": {
+    "Typeform Webhook": {
+      "main": [[{"node": "Format Message", "type": "main", "index": 0}]]
+    },
+    "Format Message": {
+      "main": [[{"node": "Send to Telegram", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
