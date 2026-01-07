@@ -1,0 +1,82 @@
+name: Weekly YouTube Outlier Research
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC (adjust as needed)
+    - cron: '0 9 * * 1'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  find-outliers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r youtube-research/requirements.txt
+
+      - name: Run YouTube Outlier Finder
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          cd youtube-research
+          python youtube_outlier_finder.py \
+            --days 7 \
+            --min-views 5000 \
+            --max-subs 50000 \
+            --threshold 5 \
+            --output ./reports \
+            --format all
+
+      - name: Upload reports as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-outlier-report-${{ github.run_number }}
+          path: youtube-research/reports/
+          retention-days: 90
+
+      - name: Commit reports to repository
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add youtube-research/reports/
+          git diff --staged --quiet || git commit -m "Add weekly YouTube outlier report $(date +%Y-%m-%d)"
+          git push
+
+      - name: Create Issue with Top Picks
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const date = new Date().toISOString().split('T')[0];
+
+            // Read the markdown report
+            const reportPath = `youtube-research/reports/outlier_report_${date}.md`;
+            let reportContent = 'Report not found';
+
+            try {
+              reportContent = fs.readFileSync(reportPath, 'utf8');
+              // Extract just the top 5 section
+              const top5Match = reportContent.match(/### 1\..+?(?=### 6\.|\n## |$)/s);
+              if (top5Match) {
+                reportContent = top5Match[0].substring(0, 3000);
+              }
+            } catch (e) {
+              console.log('Could not read report:', e);
+            }
+
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Weekly Content Ideas - ${date}`,
+              body: `## This Week's Top Viral Outliers for Shred Athletics\n\n${reportContent}\n\n---\n\nFull report available in: \`youtube-research/reports/outlier_report_${date}.md\``,
+              labels: ['content-ideas', 'weekly-research']
+            });
