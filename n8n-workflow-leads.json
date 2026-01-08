@@ -1,0 +1,60 @@
+{
+  "name": "Typeform Leads → Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "typeform-leads",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "webhook-leads",
+      "name": "Typeform Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "typeform-leads"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst answers = data.form_response?.answers || [];\nconst definition = data.form_response?.definition?.fields || [];\n\nfunction getAnswer(titleContains) {\n  const field = definition.find(f => f.title?.toLowerCase().includes(titleContains.toLowerCase()));\n  if (!field) return 'N/A';\n  const answer = answers.find(a => a.field?.id === field.id);\n  if (!answer) return 'N/A';\n  if (answer.type === 'text') return answer.text || 'N/A';\n  if (answer.type === 'email') return answer.email || 'N/A';\n  if (answer.type === 'phone_number') return answer.phone_number || 'N/A';\n  if (answer.type === 'number') return answer.number?.toString() || 'N/A';\n  if (answer.type === 'boolean') return answer.boolean ? 'Yes' : 'No';\n  if (answer.type === 'choice') return answer.choice?.label || 'N/A';\n  if (answer.type === 'choices') return answer.choices?.labels?.join(', ') || 'N/A';\n  return 'N/A';\n}\n\nconst name = getAnswer('name');\nconst email = getAnswer('email');\nconst gender = getAnswer('gender');\nconst instagram = getAnswer('instagram');\nconst work = getAnswer('work');\nconst challenge = getAnswer('challenge');\nconst goal12weeks = getAnswer('goal') || getAnswer('12 weeks');\nconst vision12months = getAnswer('12 months') || getAnswer('vision');\nconst phone = getAnswer('phone');\n\nconst message = `🚀 *NEW LEAD*\\n━━━━━━━━━━━━━━━━━━\\n\\n👤 *${name}*\\n\\n📧 Email: ${email}\\n📱 Phone: ${phone}\\n📸 Instagram: ${instagram !== 'N/A' ? '@' + instagram.replace('@', '') : 'N/A'}\\n⚧ Gender: ${gender}\\n\\n💼 *Work*: ${work}\\n\\n🎯 *Biggest Challenge*\\n${challenge}\\n\\n🏆 *12-Week Goal*\\n${goal12weeks}\\n\\n🔮 *12-Month Vision*\\n${vision12months}\\n\\n━━━━━━━━━━━━━━━━━━\\n⏰ Follow up ASAP!`;\n\nreturn [{ json: { message, clientName: name } }];"
+      },
+      "id": "format-lead",
+      "name": "Format Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "-5162226802",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "telegram-lead",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [710, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "fBEkE7o2p5HpKjq6",
+          "name": "Shred Athletics Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Typeform Webhook": {
+      "main": [[{"node": "Format Lead", "type": "main", "index": 0}]]
+    },
+    "Format Lead": {
+      "main": [[{"node": "Send to Telegram", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
