@@ -1,4 +1,12 @@
 .DS_Store
 *.bak
 node_modules/
-.env 
+.env
+.env.local
+
+# Browser automation artifacts
+browser-automation/*.png
+browser-automation/debug-*.png
+browser-automation/error-*.png
+browser-automation/athlete-*.png
+browser-automation/coach-*.png
